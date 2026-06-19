@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Value Scoring — Ticket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#EDF0F4; --surface:#FFFFFF; --ink:#161A21; --ink-soft:#5C6675;
+    --ink-faint:#94A0AE; --hair:#DCE1E8; --hair-strong:#C7CEd8;
+    --dm:#B0641A; --dm-soft:#F7ECDC; --pm:#127C7A; --pm-soft:#DBEEEC;
+    --lane-expedite:#C23B3B; --lane-high:#C77F1B; --lane-medium:#3E7CB1; --lane-backlog:#7A8696;
+    --radius:14px; --shadow:0 1px 2px rgba(22,26,33,.04), 0 8px 28px rgba(22,26,33,.07);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--canvas);color:var(--ink);
+    font-family:"Inter","Noto Sans JP",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.45;padding:28px 18px 64px;}
+  body.lang-ja{font-family:"Noto Sans JP","Inter",system-ui,sans-serif}
+  .wrap{max-width:980px;margin:0 auto}
+
+  header.top{margin-bottom:22px}
+  .head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px;}
+  h1{font-family:"Space Grotesk","Noto Sans JP",sans-serif;font-weight:700;
+    font-size:clamp(24px,4.4vw,34px);letter-spacing:-.02em;margin:0;line-height:1.05;}
+  .sub{color:var(--ink-soft);font-size:14px;margin:9px 0 0;max-width:58ch}
+  .head-controls{display:flex;gap:9px;align-items:center;flex-shrink:0}
+  .lang-toggle{display:flex;border:1px solid var(--hair-strong);border-radius:9px;overflow:hidden;background:var(--surface)}
+  .lang-toggle button{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;
+    border:none;background:transparent;color:var(--ink-soft);padding:7px 11px;cursor:pointer;transition:all .14s}
+  .lang-toggle button + button{border-left:1px solid var(--hair)}
+  .lang-toggle button[aria-pressed="true"]{background:var(--ink);color:#fff}
+  .help-btn{display:inline-flex;align-items:center;gap:6px;font-family:"Inter","Noto Sans JP",sans-serif;
+    font-size:12.5px;font-weight:600;border:1px solid var(--hair-strong);background:var(--surface);
+    color:var(--ink);border-radius:9px;padding:7px 13px;cursor:pointer;transition:all .14s}
+  .help-btn:hover{border-color:var(--ink-soft)}
+  .help-btn .q{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
+    border-radius:50%;background:var(--ink);color:#fff;font-size:11px;font-weight:700;font-family:"IBM Plex Mono",monospace}
+
+  .types{display:flex;flex-wrap:wrap;gap:7px;margin:20px 0 0}
+  .type-pill{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;
+    border:1px solid var(--hair-strong);background:var(--surface);color:var(--ink-soft);
+    border-radius:999px;padding:7px 13px;cursor:pointer;transition:all .15s ease;}
+  body.lang-ja .type-pill{font-family:"Noto Sans JP",sans-serif}
+  .type-pill:hover{border-color:var(--ink-soft)}
+  .type-pill[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .console{background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 24px;margin-top:18px;
+    display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;}
+  .scorebox{text-align:center;min-width:128px}
+  .score-num{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:62px;line-height:.95;
+    letter-spacing:-.02em;color:var(--ink);transition:color .25s ease;}
+  .score-of{font-family:"IBM Plex Mono",monospace;color:var(--ink-faint);font-size:13px;margin-top:2px}
+  .lane-badge{display:inline-block;margin-top:11px;font-size:12px;font-weight:600;letter-spacing:.02em;
+    padding:5px 12px;border-radius:999px;color:#fff;transition:background .25s ease;}
+
+  .track-wrap{position:relative;padding-top:6px}
+  .track{position:relative;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--hair);display:flex;}
+  .zone{height:100%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;
+    letter-spacing:.02em;color:rgba(255,255,255,.92);font-family:"Inter","Noto Sans JP",sans-serif;}
+  .zone.backlog{flex:50;background:var(--lane-backlog)}
+  .zone.medium{flex:15;background:var(--lane-medium)}
+  .zone.high{flex:14;background:var(--lane-high)}
+  .zone.expedite{flex:20;background:var(--lane-expedite)}
+  .zone span{opacity:0;transition:opacity .2s}
+  @media(min-width:560px){.zone span{opacity:1}}
+  .marker{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--ink);border-radius:2px;
+    transform:translateX(-1.5px);transition:left .35s cubic-bezier(.22,1,.36,1);box-shadow:0 0 0 3px var(--surface);}
+  .marker::after{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:11px;height:11px;
+    border-radius:50%;background:var(--ink);box-shadow:0 0 0 3px var(--surface);}
+  .track-scale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+    font-size:10px;color:var(--ink-faint);margin-top:5px}
+
+  .groups{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+  .group{background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+  .group-head{padding:14px 18px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:9px}
+  .group.dm .group-head{border-top:3px solid var(--dm)}
+  .group.pm .group-head{border-top:3px solid var(--pm)}
+  .role-tag{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;letter-spacing:.04em}
+  .group.dm .role-tag{background:var(--dm-soft);color:var(--dm)}
+  .group.pm .role-tag{background:var(--pm-soft);color:var(--pm)}
+  .group-head .gh-title{font-family:"Space Grotesk","Noto Sans JP",sans-serif;font-weight:600;font-size:15px}
+  .group-head .gh-sub{color:var(--ink-faint);font-size:12px;margin-left:auto;text-align:right}
+
+  .crit{padding:14px 18px;border-bottom:1px solid var(--hair)}
+  .crit:last-child{border-bottom:none}
+  .crit-top{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+  .crit-code{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px}
+  .group.dm .crit-code{color:var(--dm)}
+  .group.pm .crit-code{color:var(--pm)}
+  .crit-name{font-size:13.5px;font-weight:500}
+  .weight-chip{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-soft);
+    background:var(--canvas);border-radius:6px;padding:2px 7px;white-space:nowrap;}
+  .weight-chip b{color:var(--ink)}
+  .seg{display:flex;gap:5px}
+  .seg button{flex:1;font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;
+    border:1px solid var(--hair-strong);background:var(--surface);color:var(--ink-soft);
+    border-radius:8px;padding:8px 0;cursor:pointer;transition:all .12s ease;}
+  .seg button:hover{border-color:var(--ink-soft)}
+  .group.dm .seg button[aria-pressed="true"]{background:var(--dm);border-color:var(--dm);color:#fff}
+  .group.pm .seg button[aria-pressed="true"]{background:var(--pm);border-color:var(--pm);color:#fff}
+  .crit-desc{font-size:12px;color:var(--ink-soft);margin-top:8px;min-height:16px;line-height:1.4}
+
+  .panel{background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-top:16px;}
+  .panel h2{font-family:"Space Grotesk","Noto Sans JP",sans-serif;font-size:15px;font-weight:600;margin:0 0 4px}
+  .panel .h-note{color:var(--ink-faint);font-size:12px;margin:0 0 14px}
+  .contrib-row{display:grid;grid-template-columns:130px 1fr 56px;align-items:center;gap:12px;margin-bottom:9px}
+  .contrib-row .cl{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.lang-ja .contrib-row .cl{font-family:"Noto Sans JP",sans-serif}
+  .contrib-row .cl b{color:var(--ink)}
+  .bar{height:13px;background:var(--canvas);border-radius:7px;overflow:hidden;position:relative}
+  .bar .fill{height:100%;width:0;border-radius:7px;transition:width .35s cubic-bezier(.22,1,.36,1)}
+  .contrib-row.dm .fill{background:var(--dm)}
+  .contrib-row.pm .fill{background:var(--pm)}
+  .contrib-row .pts{font-family:"IBM Plex Mono",monospace;font-size:12.5px;text-align:right;color:var(--ink)}
+  .contrib-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--hair);margin-top:10px;padding-top:11px}
+  .contrib-foot .lbl{font-size:12.5px;color:var(--ink-soft)}
+  .contrib-foot .val{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:16px}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:16px}
+  .toolbar .ex-label{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-right:2px}
+  .btn{font-family:"Inter","Noto Sans JP",sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;
+    border:1px solid var(--hair-strong);background:var(--surface);color:var(--ink);border-radius:9px;padding:7px 13px;transition:all .14s ease;}
+  .btn:hover{border-color:var(--ink-soft)}
+  .btn.ghost{color:var(--ink-soft)}
+  .btn.reset{margin-left:auto;border-style:dashed}
+
+  details.ref{margin-top:16px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  details.ref summary{cursor:pointer;list-style:none;padding:15px 20px;font-family:"Space Grotesk","Noto Sans JP",sans-serif;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
+  details.ref summary::-webkit-details-marker{display:none}
+  details.ref summary .chev{margin-left:auto;color:var(--ink-faint);transition:transform .2s}
+  details.ref[open] summary .chev{transform:rotate(180deg)}
+  .ref-body{padding:0 20px 20px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--hair)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--ink-soft);font-size:11px;border-bottom:1px solid var(--hair-strong)}
+  tbody tr.active{background:var(--canvas)}
+  tbody td:first-child{font-weight:500}
+  .th-dm{color:var(--dm)} .th-pm{color:var(--pm)}
+  .lane-legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+  .lane-legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft);border:1px solid var(--hair);border-radius:8px;padding:6px 11px}
+  .lane-legend .dot{width:10px;height:10px;border-radius:3px}
+
+  footer.note{color:var(--ink-faint);font-size:11.5px;margin-top:22px;text-align:center;line-height:1.6}
+  footer.note code{font-family:"IBM Plex Mono",monospace;background:var(--surface);border:1px solid var(--hair);border-radius:5px;padding:1px 6px;color:var(--ink-soft)}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(22,26,33,.5);backdrop-filter:blur(2px);
+    display:flex;align-items:flex-start;justify-content:center;padding:40px 18px;z-index:50;overflow-y:auto}
+  .modal-backdrop[hidden]{display:none}
+  .modal{background:var(--surface);border-radius:var(--radius);max-width:680px;width:100%;
+    box-shadow:0 24px 60px rgba(22,26,33,.28);animation:pop .2s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .modal-head{display:flex;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--hair);position:sticky;top:0;background:var(--surface);border-radius:var(--radius) var(--radius) 0 0}
+  .modal-head h2{font-family:"Space Grotesk","Noto Sans JP",sans-serif;font-size:18px;font-weight:700;margin:0}
+  .modal-close{margin-left:auto;border:1px solid var(--hair-strong);background:var(--surface);width:30px;height:30px;
+    border-radius:8px;cursor:pointer;font-size:18px;color:var(--ink-soft);line-height:1;display:flex;align-items:center;justify-content:center}
+  .modal-close:hover{border-color:var(--ink-soft)}
+  .modal-body{padding:20px 22px 26px;font-size:13.5px;line-height:1.6}
+  .modal-body h3{font-family:"Space Grotesk","Noto Sans JP",sans-serif;font-size:14px;font-weight:600;margin:20px 0 7px;
+    padding-top:14px;border-top:1px solid var(--hair)}
+  .modal-body h3:first-of-type{border-top:none;padding-top:0;margin-top:6px}
+  .modal-body p{margin:0 0 9px;color:var(--ink-soft)}
+  .modal-body ol,.modal-body ul{margin:0 0 9px;padding-left:20px;color:var(--ink-soft)}
+  .modal-body li{margin-bottom:5px}
+  .modal-body b{color:var(--ink)}
+  .modal-body code{font-family:"IBM Plex Mono",monospace;background:var(--canvas);border-radius:5px;padding:1px 6px;font-size:12px}
+  .modal-body table{margin:4px 0 9px}
+  .modal-body table td{text-align:left;color:var(--ink-soft);vertical-align:top}
+  .modal-body table td:first-child{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--ink);white-space:nowrap;width:1%;padding-right:14px}
+
+  @media(max-width:680px){
+    .console{grid-template-columns:1fr;gap:18px;text-align:center}
+    .scorebox{margin:0 auto}
+    .groups{grid-template-columns:1fr}
+    .contrib-row{grid-template-columns:104px 1fr 50px}
+  }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="head-row">
+      <div class="head-titles">
+        <p class="eyebrow" id="eyebrow"></p>
+        <h1 id="title"></h1>
+        <p class="sub" id="sub"></p>
+      </div>
+      <div class="head-controls">
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button data-lang="vi" aria-pressed="true">VI</button>
+          <button data-lang="ja" aria-pressed="false">日本語</button>
+        </div>
+        <button class="help-btn" id="helpBtn"><span class="q">?</span><span id="helpLabel"></span></button>
+      </div>
+    </div>
+    <div class="types" id="types" role="group" aria-label="Ticket type"></div>
+  </header>
+
+  <section class="console" aria-label="Result">
+    <div class="scorebox">
+      <div class="score-num" id="scoreNum">0.0</div>
+      <div class="score-of">/ 100</div>
+      <div class="lane-badge" id="laneBadge"></div>
+    </div>
+    <div class="track-wrap">
+      <div class="track" id="track" aria-hidden="true">
+        <div class="zone backlog"><span id="zone0"></span></div>
+        <div class="zone medium"><span id="zone1"></span></div>
+        <div class="zone high"><span id="zone2"></span></div>
+        <div class="zone expedite"><span id="zone3"></span></div>
+        <div class="marker" id="marker" style="left:0%"></div>
+      </div>
+      <div class="track-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+    </div>
+  </section>
+
+  <div class="groups">
+    <div class="group dm" id="group-dm">
+      <div class="group-head">
+        <span class="role-tag">DM</span>
+        <span class="gh-title" id="dmTitle"></span>
+        <span class="gh-sub" id="dmSub"></span>
+      </div>
+      <div class="crit-list" data-group="dm"></div>
+    </div>
+    <div class="group pm" id="group-pm">
+      <div class="group-head">
+        <span class="role-tag">PM</span>
+        <span class="gh-title" id="pmTitle"></span>
+        <span class="gh-sub" id="pmSub"></span>
+      </div>
+      <div class="crit-list" data-group="pm"></div>
+    </div>
+  </div>
+
+  <section class="panel" aria-label="Contribution">
+    <h2 id="contribH2"></h2>
+    <p class="h-note" id="contribNote"></p>
+    <div id="contrib"></div>
+    <div class="contrib-foot">
+      <span class="lbl" id="contribFootLbl"></span>
+      <span class="val" id="contribTotal">0.0</span>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <span class="ex-label" id="exLabel"></span>
+    <button class="btn" data-ex="0" id="ex0"></button>
+    <button class="btn" data-ex="1" id="ex1"></button>
+    <button class="btn" data-ex="2" id="ex2"></button>
+    <button class="btn ghost reset" id="resetBtn"></button>
+  </div>
+
+  <details class="ref">
+    <summary><span id="refSummaryText"></span> <span class="chev">▾</span></summary>
+    <div class="ref-body">
+      <table>
+        <thead>
+          <tr>
+            <th id="matrixHead0"></th>
+            <th class="th-dm">TM</th><th class="th-dm">KH</th><th class="th-dm">CL</th>
+            <th class="th-pm">VH</th><th class="th-pm">EN</th><th class="th-pm">RR</th>
+          </tr>
+        </thead>
+        <tbody id="matrixBody"></tbody>
+      </table>
+      <div class="lane-legend">
+        <div class="lg"><span class="dot" style="background:var(--lane-expedite)"></span><span id="lg0"></span></div>
+        <div class="lg"><span class="dot" style="background:var(--lane-high)"></span><span id="lg1"></span></div>
+        <div class="lg"><span class="dot" style="background:var(--lane-medium)"></span><span id="lg2"></span></div>
+        <div class="lg"><span class="dot" style="background:var(--lane-backlog)"></span><span id="lg3"></span></div>
+      </div>
+    </div>
+  </details>
+
+  <footer class="note" id="footNote"></footer>
+</div>
+
+<div class="modal-backdrop" id="guideModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <div class="modal-head">
+      <h2 id="guideTitle"></h2>
+      <button class="modal-close" id="guideClose" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="guideBody"></div>
+  </div>
+</div>
+
+<script>
+  const WEIGHTS = {
+    "New Feature":            {TM:28, KH:23, CL:26, VH:5,  EN:10, RR:8},
+    "Enhancement / Maintain": {TM:18, KH:28, CL:18, VH:13, EN:15, RR:8},
+    "Bug Fix":                {TM:11, KH:24, CL:11, VH:35, EN:5,  RR:14},
+    "Tech Debt":              {TM:5,  KH:5,  CL:15, VH:21, EN:41, RR:13},
+    "Ops / Infra":            {TM:5,  KH:8,  CL:13, VH:43, EN:18, RR:13},
+    "Security":               {TM:2,  KH:10, CL:13, VH:18, EN:8,  RR:50},
+    "Research / Spike":       {TM:6,  KH:6,  CL:29, VH:12, EN:29, RR:18},
+  };
+  const ORDER = {dm:["TM","KH","CL"], pm:["VH","EN","RR"]};
+  const ALL = [...ORDER.dm, ...ORDER.pm];
+  const GROUP_OF = {TM:"dm",KH:"dm",CL:"dm",VH:"pm",EN:"pm",RR:"pm"};
+  const TYPE_KEYS = Object.keys(WEIGHTS);
+  const LANE_COLOR = ["var(--lane-backlog)","var(--lane-medium)","var(--lane-high)","var(--lane-expedite)"];
+  const EXAMPLES = [
+    {type:"Bug Fix",  s:{TM:2,KH:5,CL:3,VH:5,EN:1,RR:2}},
+    {type:"Tech Debt",s:{TM:1,KH:2,CL:4,VH:4,EN:5,RR:2}},
+    {type:"Security", s:{TM:1,KH:3,CL:4,VH:3,EN:2,RR:5}},
+  ];
+
+  const I18N = {
+    vi:{
+      eyebrow:"Backlog prioritization · IT Product",
+      title:"Business Value Scoring",
+      sub:"Chọn loại ticket, chấm 6 tiêu chí theo nhóm DM và PM. Điểm và priority lane được tính trực tiếp theo ma trận trọng số.",
+      help:"Hướng dẫn",
+      dmTitle:"Business", dmSub:"Thương mại · Khách hàng · Chiến lược",
+      pmTitle:"Product / Tech", pmSub:"Vận hành · Enablement · Risk",
+      contribH2:"Điểm đóng góp",
+      contribNote:"Mỗi thanh = score × trọng số ÷ 5. Độ dài nền phản ánh trọng số của tiêu chí cho loại ticket đang chọn. Tổng các thanh = điểm cuối.",
+      contribFoot:"Business Value Score",
+      exLabel:"Ví dụ", reset:"Đặt lại về 0",
+      refSummary:"Ma trận trọng số & priority lane",
+      matrixHead:"Loại ticket",
+      zones:["Backlog <50","Medium 50–64","High 65–79","Expedite 80+"],
+      lanes:["Backlog / Batch","Medium Priority","High Priority","Expedite / sprint gần nhất"],
+      legend:["80–100 · Expedite / sprint gần nhất","65–79 · High Priority","50–64 · Medium Priority","<50 · Backlog / Batch"],
+      foot:'Công thức <code>Σ(score × weight) / 5</code> · mỗi loại ticket có tổng trọng số = 100 → thang 0–100.<br>Điểm số là input cho thảo luận planning, không phải quyết định tuyệt đối. Hard gate (SEV1, exploit, deadline pháp lý…) luôn ưu tiên trước scoring.',
+      types:{"New Feature":"New Feature","Enhancement / Maintain":"Enhancement / Maintain","Bug Fix":"Bug Fix","Tech Debt":"Tech Debt","Ops / Infra":"Ops / Infra","Security":"Security","Research / Spike":"Research / Spike"},
+      exBtns:["Bug Fix · notification fail","Tech Debt · refactor","Security · secret leak"],
+      crit:{
+        TM:{name:"Thương mại",desc:["Không có tác động thương mại rõ ràng","Tác động rất gián tiếp, khó định lượng","Hỗ trợ business nhưng chưa có deal cụ thể","Tác động đáng kể: retention hoặc giảm chi phí","Trực tiếp đến deal / renewal / cost saving rõ","Rất lớn: deal lớn, bảo vệ KH chiến lược, ngăn mất doanh thu"]},
+        KH:{name:"Khách hàng",desc:["User hầu như không cảm nhận được","Ảnh hưởng rất nhỏ hoặc nhóm user rất nhỏ","Cải thiện nhẹ cho một nhóm user cụ thể","Cải thiện rõ cho flow tần suất sử dụng vừa","Ảnh hưởng lớn đến nhiều user / KH quan trọng","Rất lớn: critical journey hoặc phần lớn user"]},
+        CL:{name:"Chiến lược",desc:["Không gắn với chiến lược / deadline nào","Liên quan nhẹ đến roadmap dài hạn","Hỗ trợ mục tiêu nhưng không khẩn cấp","Gắn mục tiêu quý hoặc unblock một phần kế hoạch","Quan trọng cho roadmap/OKR hiện tại, delay thiệt hại rõ","Critical path, deadline cứng, mất cơ hội/cam kết lớn"]},
+        VH:{name:"Vận hành",desc:["Không ảnh hưởng vận hành / reliability","Cải thiện nhỏ, không có metric rõ","Giảm một số pain vận hành cục bộ","Cải thiện rõ cho service / flow quan trọng","Giảm đáng kể incident, latency, support load, toil","Đang/sắp breach SLO/SLA, SEV cao, ảnh hưởng core flow"]},
+        EN:{name:"Enablement",desc:["Không mở đường gì cho tương lai","Cải thiện nhỏ trong một module","Có lợi cho một số thay đổi sau","Unblock vài ticket / giảm effort cho một area","Mở đường cho initiative lớn hoặc nhiều team","Nền tảng quan trọng cho roadmap/architecture dài hạn"]},
+        RR:{name:"Risk",desc:["Không liên quan risk / compliance / security","Hygiene nhỏ, rủi ro thấp","Có rủi ro nhưng impact/likelihood thấp","Rủi ro thực tế, cần xử lý trong kế hoạch gần","Rủi ro cao: security/compliance/trust bị ảnh hưởng rõ","Critical: active exploit, credential leak, regulated data"]},
+      },
+      guideTitle:"Hướng dẫn sử dụng",
+      guideHTML:`
+        <p>Công cụ giúp <b>chuẩn hóa đánh giá business value</b> của một ticket, ra điểm <b>0–100</b> và một <b>priority lane</b>, thay cho việc ưu tiên theo cảm tính.</p>
+        <h3>Các bước</h3>
+        <ol>
+          <li><b>Chọn loại ticket</b> ở hàng pill phía trên — loại ticket quyết định bộ trọng số.</li>
+          <li><b>Chấm 6 tiêu chí</b> bằng nút 0–5. Khi chọn, dòng mô tả bên dưới cho biết mức điểm đó nghĩa là gì.</li>
+          <li><b>Đọc kết quả</b> ở console: điểm, priority lane và vị trí trên thanh. Phần "Điểm đóng góp" cho thấy tiêu chí nào đang kéo điểm.</li>
+        </ol>
+        <h3>6 tiêu chí</h3>
+        <p>Mã (TM/KH/CL/VH/EN/RR) giữ nguyên ở cả hai ngôn ngữ để khớp với tài liệu và skill.</p>
+        <table><tbody>
+          <tr><td>TM</td><td>Thương mại — doanh thu, chi phí, deal, renewal, cost saving.</td></tr>
+          <tr><td>KH</td><td>Khách hàng — phạm vi & mức ảnh hưởng tới user/khách hàng.</td></tr>
+          <tr><td>CL</td><td>Chiến lược — OKR, roadmap, deadline, cost of delay.</td></tr>
+          <tr><td>VH</td><td>Vận hành — reliability, SLO/SLA, incident, support load.</td></tr>
+          <tr><td>EN</td><td>Enablement — nền tảng cho feature/architecture tương lai.</td></tr>
+          <tr><td>RR</td><td>Risk — security, compliance, privacy, audit, pháp lý.</td></tr>
+        </tbody></table>
+        <h3>Hai nhóm người chấm</h3>
+        <p><b>DM</b> (Decision Maker / business) chấm <b>TM · KH · CL</b>. <b>PM</b> (Product Manager) chấm <b>VH · EN · RR</b>. Việc tách nhóm giúp mỗi tiêu chí được chấm đúng góc nhìn.</p>
+        <h3>Công thức & priority lane</h3>
+        <p><code>Σ(score × weight) / 5</code>. Tổng trọng số mỗi loại = 100 → điểm nằm trong 0–100.</p>
+        <ul>
+          <li><b>80–100</b> → Expedite / sprint gần nhất</li>
+          <li><b>65–79</b> → High Priority</li>
+          <li><b>50–64</b> → Medium Priority</li>
+          <li><b>&lt;50</b> → Backlog / Batch</li>
+        </ul>
+        <h3>Hard gate — expedite ngay</h3>
+        <p>Bất kể điểm số, đưa vào expedite nếu: SEV1/incident nghiêm trọng; security đang bị khai thác hoặc credential leak; deadline pháp lý/compliance cứng; SLA/SLO đang breach; cam kết hợp đồng với KH chiến lược có deadline cụ thể.</p>
+        <h3>Lưu ý khi chấm</h3>
+        <ul>
+          <li>Điểm số là input cho thảo luận planning, không phải quyết định tuyệt đối.</li>
+          <li>Thiếu dữ liệu → chấm thận trọng, đừng thổi phồng; nếu quá mơ hồ hãy tạo Research/Spike để làm rõ.</li>
+          <li>Nút "Ví dụ" nạp 3 case mẫu (Bug Fix, Tech Debt, Security) để tham khảo cách chấm.</li>
+        </ul>`
+    },
+    ja:{
+      eyebrow:"バックログ優先順位付け · ITプロダクト",
+      title:"ビジネス価値スコアリング",
+      sub:"チケット種別を選び、DM と PM の6項目を採点します。スコアと優先レーンは重み行列に基づいて即時に計算されます。",
+      help:"ガイド",
+      dmTitle:"ビジネス", dmSub:"商業性・顧客・戦略",
+      pmTitle:"プロダクト / 技術", pmSub:"運用・基盤・リスク",
+      contribH2:"貢献スコア",
+      contribNote:"各バー = スコア × 重み ÷ 5。背景の長さは選択中チケット種別での重みを表します。バーの合計 = 最終スコア。",
+      contribFoot:"ビジネス価値スコア",
+      exLabel:"例", reset:"0 にリセット",
+      refSummary:"重み行列と優先レーン",
+      matrixHead:"チケット種別",
+      zones:["バックログ <50","中 50–64","高 65–79","最優先 80+"],
+      lanes:["バックログ / バッチ","中優先度","高優先度","最優先 / 直近スプリント"],
+      legend:["80–100 · 最優先 / 直近スプリント","65–79 · 高優先度","50–64 · 中優先度","<50 · バックログ / バッチ"],
+      foot:'式 <code>Σ(スコア × 重み) / 5</code> · 各チケット種別の重み合計 = 100 → 0–100 スケール。<br>スコアはプランニング議論のインプットであり、絶対的な決定ではありません。ハードゲート（SEV1・攻撃発生・法的期限など）は常にスコアより優先されます。',
+      types:{"New Feature":"新機能","Enhancement / Maintain":"改善 / 保守","Bug Fix":"バグ修正","Tech Debt":"技術的負債","Ops / Infra":"運用 / インフラ","Security":"セキュリティ","Research / Spike":"調査 / スパイク"},
+      exBtns:["バグ修正 · 通知失敗","技術的負債 · リファクタ","セキュリティ · シークレット漏洩"],
+      crit:{
+        TM:{name:"商業性",desc:["商業的影響なし","非常に間接的・定量化困難","ビジネスに寄与するが具体的な案件なし","相当の影響（リテンション／コスト削減）","案件・更新・コスト削減に直接影響","非常に大きい：大型案件、戦略顧客の維持、重大な収益損失の防止"]},
+        KH:{name:"顧客",desc:["ユーザーはほぼ気づかない","ごく小さい／非常に小さなユーザー群","特定の一群にわずかな改善","中頻度のフローで明確な改善","多数ユーザー／重要顧客に大きく影響","非常に大きい：クリティカルジャーニー／大半のユーザー"]},
+        CL:{name:"戦略",desc:["戦略／期限に紐づかない","長期ロードマップに軽く関連","目標を支えるが緊急ではない","四半期目標／計画の一部をアンブロック","現行ロードマップ/OKRに重要、遅延で明確な損失","クリティカルパス／固定期限／大きな機会損失"]},
+        VH:{name:"運用",desc:["運用／信頼性に影響なし","小さな改善・明確な指標なし","局所的な運用負荷を軽減","重要なサービスで明確に改善","インシデント/レイテンシ/サポート/トイルを大幅削減","SLO/SLA違反中または間近、高SEV、コアフローに影響"]},
+        EN:{name:"基盤",desc:["将来への道を開かない","1モジュールの小さな改善","今後のいくつかの変更に有益","数チケットをアンブロック／一領域の工数削減","大型イニシアチブ／複数チームへの道を開く","長期ロードマップ/アーキの重要な基盤"]},
+        RR:{name:"リスク",desc:["リスク/コンプラ/セキュリティに無関係","小さな衛生対応・低リスク","リスクはあるが影響/発生確率が低い","実在リスク・近く対処が必要","高リスク（セキュリティ/コンプラ/信頼に明確な影響）","クリティカル（実攻撃、認証情報漏洩、規制データ露出、法的固定期限）"]},
+      },
+      guideTitle:"使い方ガイド",
+      guideHTML:`
+        <p>このツールはチケットの<b>ビジネス価値評価を標準化</b>し、<b>0–100</b> のスコアと<b>優先レーン</b>を算出します。勘に頼った優先順位付けを置き換えます。</p>
+        <h3>手順</h3>
+        <ol>
+          <li>上部のピルで<b>チケット種別を選択</b>します — 種別が重みセットを決めます。</li>
+          <li>0–5 のボタンで<b>6項目を採点</b>します。選ぶと下に各スコアの意味が表示されます。</li>
+          <li>コンソールで<b>結果を確認</b>：スコア、優先レーン、バー上の位置。「貢献スコア」でどの項目がスコアを牽引しているか分かります。</li>
+        </ol>
+        <h3>6つの評価項目</h3>
+        <p>コード（TM/KH/CL/VH/EN/RR）はドキュメントやスキルと揃えるため、両言語で共通です。</p>
+        <table><tbody>
+          <tr><td>TM</td><td>商業性 — 収益・コスト・案件・更新・コスト削減。</td></tr>
+          <tr><td>KH</td><td>顧客 — ユーザー/顧客への影響範囲と度合い。</td></tr>
+          <tr><td>CL</td><td>戦略 — OKR・ロードマップ・期限・遅延コスト。</td></tr>
+          <tr><td>VH</td><td>運用 — 信頼性・SLO/SLA・インシデント・サポート負荷。</td></tr>
+          <tr><td>EN</td><td>基盤 — 将来の機能/アーキの土台。</td></tr>
+          <tr><td>RR</td><td>リスク — セキュリティ・コンプラ・プライバシー・監査・法務。</td></tr>
+        </tbody></table>
+        <h3>2つの採点ロール</h3>
+        <p><b>DM</b>（意思決定者／ビジネス）が <b>TM · KH · CL</b> を、<b>PM</b>（プロダクトマネージャー）が <b>VH · EN · RR</b> を採点します。ロールを分けることで各項目を適切な視点で評価できます。</p>
+        <h3>計算式と優先レーン</h3>
+        <p><code>Σ(スコア × 重み) / 5</code>。各種別の重み合計 = 100 のため、スコアは 0–100 に収まります。</p>
+        <ul>
+          <li><b>80–100</b> → 最優先 / 直近スプリント</li>
+          <li><b>65–79</b> → 高優先度</li>
+          <li><b>50–64</b> → 中優先度</li>
+          <li><b>&lt;50</b> → バックログ / バッチ</li>
+        </ul>
+        <h3>ハードゲート — 即時最優先</h3>
+        <p>スコアに関係なく、次の場合は即 Expedite：SEV1/重大インシデント発生中；セキュリティが攻撃を受けている、または認証情報漏洩；法的・コンプラの固定期限；SLA/SLO 違反中；固定期限のある戦略顧客との契約コミット。</p>
+        <h3>採点時の注意</h3>
+        <ul>
+          <li>スコアはプランニング議論のインプットであり、絶対的な決定ではありません。</li>
+          <li>データ不足のときは控えめに採点し、過大評価しない。曖昧すぎる場合はまず調査/スパイクで明確化を。</li>
+          <li>「例」ボタンで3つのサンプル（バグ修正・技術的負債・セキュリティ）を読み込み、採点の参考にできます。</li>
+        </ul>`
+    }
+  };
+
+  const state = { lang:"vi", type:"Bug Fix", scores:{TM:0,KH:0,CL:0,VH:0,EN:0,RR:0} };
+  const T = () => I18N[state.lang];
+  const set = (sel,txt)=>{ const e=document.querySelector(sel); if(e) e.textContent=txt; };
+  const tierOf = s => s>=80?3 : s>=65?2 : s>=50?1 : 0;
+
+  /* build ticket type pills */
+  const typesEl = document.getElementById("types");
+  TYPE_KEYS.forEach(t=>{
+    const b=document.createElement("button");
+    b.className="type-pill";b.dataset.type=t;
+    b.addEventListener("click",()=>{ state.type=t; syncTypes(); render(); });
+    typesEl.appendChild(b);
+  });
+  function syncTypes(){
+    typesEl.querySelectorAll(".type-pill").forEach(b=>{
+      b.textContent=T().types[b.dataset.type];
+      b.setAttribute("aria-pressed", b.dataset.type===state.type ? "true":"false");
+    });
+  }
+
+  /* build criterion rows */
+  function buildCrits(group){
+    const host=document.querySelector(`.crit-list[data-group="${group}"]`);
+    ORDER[group].forEach(code=>{
+      const row=document.createElement("div");row.className="crit";row.dataset.code=code;
+      row.innerHTML=`
+        <div class="crit-top">
+          <span class="crit-code">${code}</span>
+          <span class="crit-name"></span>
+          <span class="weight-chip">w <b data-w="${code}">–</b></span>
+        </div>
+        <div class="seg" role="group" aria-label="${code} 0-5"></div>
+        <div class="crit-desc" data-desc="${code}"></div>`;
+      const seg=row.querySelector(".seg");
+      for(let i=0;i<=5;i++){
+        const sb=document.createElement("button");
+        sb.textContent=i;sb.dataset.val=i;
+        sb.addEventListener("click",()=>{ state.scores[code]=i; render(); });
+        seg.appendChild(sb);
+      }
+      host.appendChild(row);
+    });
+  }
+  buildCrits("dm"); buildCrits("pm");
+
+  /* build contribution rows */
+  const contribEl=document.getElementById("contrib");
+  ALL.forEach(code=>{
+    const r=document.createElement("div");
+    r.className=`contrib-row ${GROUP_OF[code]}`;r.dataset.code=code;
+    r.innerHTML=`<div class="cl" data-cl="${code}"></div>
+      <div class="bar"><div class="fill" data-fill="${code}"></div></div>
+      <div class="pts" data-pts="${code}">0.0</div>`;
+    contribEl.appendChild(r);
+  });
+
+  /* build reference matrix */
+  const mb=document.getElementById("matrixBody");
+  TYPE_KEYS.forEach(t=>{
+    const w=WEIGHTS[t];
+    const tr=document.createElement("tr");tr.dataset.type=t;
+    tr.innerHTML=`<td data-typecell="${t}"></td><td>${w.TM}</td><td>${w.KH}</td><td>${w.CL}</td><td>${w.VH}</td><td>${w.EN}</td><td>${w.RR}</td>`;
+    mb.appendChild(tr);
+  });
+
+  /* apply all static chrome text for current language */
+  function applyChrome(){
+    const t=T();
+    document.documentElement.lang = state.lang;
+    document.body.classList.toggle("lang-ja", state.lang==="ja");
+    set("#eyebrow",t.eyebrow); set("#title",t.title); set("#sub",t.sub);
+    set("#helpLabel",t.help);
+    set("#dmTitle",t.dmTitle); set("#dmSub",t.dmSub);
+    set("#pmTitle",t.pmTitle); set("#pmSub",t.pmSub);
+    set("#contribH2",t.contribH2); set("#contribNote",t.contribNote); set("#contribFootLbl",t.contribFoot);
+    set("#exLabel",t.exLabel); set("#resetBtn",t.reset);
+    set("#refSummaryText",t.refSummary); set("#matrixHead0",t.matrixHead);
+    t.zones.forEach((z,i)=>set("#zone"+i,z));
+    t.legend.forEach((l,i)=>set("#lg"+i,l));
+    t.exBtns.forEach((b,i)=>set("#ex"+i,b));
+    document.getElementById("footNote").innerHTML=t.foot;
+    document.querySelectorAll(".lang-toggle button").forEach(b=>
+      b.setAttribute("aria-pressed", b.dataset.lang===state.lang ? "true":"false"));
+    mb.querySelectorAll("[data-typecell]").forEach(td=>
+      td.textContent=t.types[td.dataset.typecell]);
+    set("#guideTitle",t.guideTitle);
+    document.getElementById("guideBody").innerHTML=t.guideHTML;
+  }
+
+  /* render dynamic state */
+  function render(){
+    const t=T(), w=WEIGHTS[state.type];
+    let totalRaw=0;
+    ALL.forEach(code=> totalRaw += state.scores[code]*w[code]);
+    const score=totalRaw/5, tier=tierOf(score), color=LANE_COLOR[tier];
+
+    const sn=document.getElementById("scoreNum");
+    sn.textContent=score.toFixed(1); sn.style.color=color;
+    const badge=document.getElementById("laneBadge");
+    badge.textContent=t.lanes[tier]; badge.style.background=color;
+    document.getElementById("marker").style.left=score+"%";
+    document.getElementById("contribTotal").textContent=score.toFixed(1);
+
+    ALL.forEach(code=>{
+      const s=state.scores[code];
+      document.querySelector(`[data-w="${code}"]`).textContent=w[code];
+      const row=document.querySelector(`.crit[data-code="${code}"]`);
+      row.querySelector(".crit-name").textContent=t.crit[code].name;
+      row.querySelectorAll(".seg button").forEach(b=>
+        b.setAttribute("aria-pressed",(+b.dataset.val===s)?"true":"false"));
+      row.querySelector(`[data-desc="${code}"]`).textContent=`${s} — ${t.crit[code].desc[s]}`;
+      const pts=s*w[code]/5;
+      document.querySelector(`[data-pts="${code}"]`).textContent=pts.toFixed(1);
+      document.querySelector(`[data-fill="${code}"]`).style.width=((s/5)*(w[code]/50)*100)+"%";
+      document.querySelector(`[data-cl="${code}"]`).innerHTML=`<b>${code}</b> ${t.crit[code].name}`;
+    });
+
+    mb.querySelectorAll("tr").forEach(tr=>
+      tr.classList.toggle("active", tr.dataset.type===state.type));
+  }
+
+  /* language toggle */
+  document.querySelectorAll(".lang-toggle button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      state.lang=b.dataset.lang;
+      applyChrome(); syncTypes(); render();
+    });
+  });
+
+  /* examples + reset */
+  document.querySelectorAll(".btn[data-ex]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const ex=EXAMPLES[+b.dataset.ex];
+      state.type=ex.type; state.scores={...ex.s};
+      syncTypes(); render();
+    });
+  });
+  document.getElementById("resetBtn").addEventListener("click",()=>{
+    state.scores={TM:0,KH:0,CL:0,VH:0,EN:0,RR:0}; render();
+  });
+
+  /* guide modal */
+  const modal=document.getElementById("guideModal");
+  const openGuide=()=>{ modal.hidden=false; document.getElementById("guideClose").focus(); };
+  const closeGuide=()=>{ modal.hidden=true; document.getElementById("helpBtn").focus(); };
+  document.getElementById("helpBtn").addEventListener("click",openGuide);
+  document.getElementById("guideClose").addEventListener("click",closeGuide);
+  modal.addEventListener("click",e=>{ if(e.target===modal) closeGuide(); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !modal.hidden) closeGuide(); });
+
+  /* init */
+  applyChrome(); syncTypes(); render();
+</script>
+</body>
+</html>
