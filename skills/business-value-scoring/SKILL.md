@@ -164,8 +164,29 @@ Kết quả batch nên hiểu là **bản triage để xếp thứ tự sơ bộ
 
 Nếu ticket là một issue Redmine/DrJoy và user muốn lấy thông tin trực tiếp hoặc ghi kết quả lại, dùng skill/MCP tương ứng (`drjoy-management:redmine` v.v.). Skill này chỉ phụ trách *logic chấm điểm*; mọi thao tác ghi (comment, custom field) phải được user xác nhận trước.
 
-## Ví dụ
+## Ví dụ tham chiếu (tách theo loại ticket)
 
-Xem `references/examples.md` để có 3 ví dụ đã tính sẵn (Bug Fix, Tech Debt, Security) minh họa cách chấm điểm, áp trọng số và ra lane. Đọc file này khi cần đối chiếu cách chấm trong tình huống thực tế hoặc khi không chắc về mức anchor.
+Ví dụ được tách thành **một file cho mỗi loại ticket** trong `references/examples/` để bộ ví dụ phình to dần mà vẫn dễ tra: `bug-fix.md`, `tech-debt.md`, `security.md`, `new-feature.md`, `enhancement-maintain.md`, `ops-infra.md`, `research-spike.md` (xem `references/examples/README.md`).
 
-Script `scripts/score_batch.py` dùng cho chế độ batch (mục trên) — nhận JSON điểm đã chấm và in bảng xếp hạng. Script chỉ làm số học, không tự chấm.
+Khi không chắc nên cho điểm nào, mở file của **đúng loại ticket đang chấm** và đối chiếu — chỉ đọc file liên quan, không cần đọc hết. Càng nhiều ví dụ đã hiệu chỉnh trong một loại, việc chấm loại đó càng nhất quán.
+
+## Calibration — cập nhật ví dụ từ feedback
+
+Mỗi khi user **feedback/chỉnh điểm** một ticket (vd. "KH nên là 4 chứ không phải 3", "ticket này phải High mới đúng"), làm hai việc:
+
+1. **Áp sửa ngay** trong phiên: chấm lại theo feedback, tính lại điểm và lane, giải thích ngắn gọn thay đổi.
+2. **Ghi case đã hiệu chỉnh vào file ví dụ của đúng loại** để lần sau dùng làm chuẩn. Tạo một object JSON gồm `type`, `id` (mã issue nếu có — dùng để upsert), `title`, `context`, `scores`, `reasons` (lý do theo mã, tùy chọn), `source: "feedback"`, và `correction` (1 câu vì sao chỉnh), rồi chạy:
+   ```bash
+   python scripts/add_example.py --json '{"type":"Bug","id":"1234", ... ,"source":"feedback","correction":"KH 3→4 vì support xác nhận diện rộng"}'
+   ```
+   Script upsert theo `id`: gọi lại cùng id sẽ **ghi đè** block cũ thay vì nhân bản, nên ví dụ luôn phản ánh lần chỉnh mới nhất. Script tự tính lại điểm/lane từ `scores` để con số trong ví dụ luôn đúng.
+
+**Lưu ý quan trọng về nơi ghi:** nếu skill đang chạy ở thư mục **ghi được** (bản giải nén đang chỉnh, Claude Code), script ghi thẳng vào `references/examples/<loại>.md`. Nếu skill **đã cài ở chế độ chỉ-đọc**, script không ghi được file — khi đó nó in ra block ví dụ; hãy đưa block đó cho user lưu vào file tương ứng rồi đóng gói lại skill. Đừng nói "đã tự động lưu vĩnh viễn" nếu thực tế chỉ vừa in block ra.
+
+Có thể dùng `add_example.py` cả khi không có feedback, để thêm một ví dụ chuẩn mới cho một loại (`source: "manual"`).
+
+## Scripts
+
+- `scripts/score_batch.py <scores.json>` — chế độ batch: nhận JSON điểm đã chấm, in bảng xếp hạng. Chỉ làm số học.
+- `scripts/add_example.py` — ghi/cập nhật một ví dụ vào `references/examples/<loại>.md` (upsert theo id). Dùng cho calibration.
+- `scripts/bv_model.py` — lõi dùng chung (trọng số, mapping, tính điểm). Hai script trên import từ đây nên mọi nơi tính theo cùng một logic.
